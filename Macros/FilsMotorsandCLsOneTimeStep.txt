@@ -1,0 +1,118 @@
+L=1*100; //Pixel length for drawing filaments
+dir=getDirectory("Choose a Directory");
+filestring=File.openAsString(dir+"fil1.txt");
+rows=split(filestring,"\n"); //Number of filaments
+columns=split(rows[0]); //xp,yp,theta, should always be 3 columns
+time=getNumber("What time to plot?",1);
+N=rows.length;
+
+theta=newArray(N);
+xp=newArray(N);
+xm=newArray(N);
+yp=newArray(N);
+ym=newArray(N);
+
+newImage("Simulation","RGB black",1200,400,1);
+
+setColor(100,0,0);
+
+t=time;
+	firstPart="fil";
+	number=toString(t);
+	fileType=".txt";
+	title=firstPart+number+fileType;
+	filename=dir+title;
+	filestring=File.openAsString(filename);
+	rows=split(filestring,"\n");
+	setBatchMode(true);
+
+	for (i=0; i<N/2; i++){
+		line=split(rows[i]);
+		xp[i]=((line[0])+2)*100; // 2 and 100
+		yp[i]=((line[1])+2)*100;
+		theta[i]=(line[2]);
+		xm[i]=xp[i]-L*cos(theta[i]);
+		ym[i]=yp[i]-L*sin(theta[i]);
+		newImage(toString(i),"RGB black",400,400,1);
+		setLineWidth(2);
+		drawLine(xm[i],ym[i],xp[i],yp[i]);
+
+		if (i>0){
+			imageCalculator("Add","0",toString(i));
+			close(toString(i));
+		}
+		
+	}
+
+	firstPartCL="CL";
+	numberCL=toString(t);
+	fileTypeCL=".txt";
+	titleCL=firstPartCL+numberCL+fileTypeCL;
+	filenameCL=dir+titleCL;
+	filestringCL=File.openAsString(filenameCL);
+	rowsCL=split(filestringCL,"\n");
+	columnsCL=split(rowsCL[0]);
+	CL=rowsCL.length;
+	xCL1=newArray(CL);
+	yCL1=newArray(CL);
+	xCL2=newArray(CL);
+	yCL2=newArray(CL);
+
+	for (k=0; k<CL; k++){
+		lineCL=split(rowsCL[k]);
+
+		xCL1[k]=((lineCL[0])+2)*100;
+		yCL1[k]=((lineCL[1])+2)*100;
+		xCL2[k]=((lineCL[2])+2)*100;
+		yCL2[k]=((lineCL[3])+2)*100;
+		newImage("cl"+toString(k),"RGB black",400,400,1);
+		setLineWidth(2);
+		setColor(100,100,0);
+		drawLine(xCL1[k],yCL1[k],xCL2[k],yCL2[k]);
+
+		if (k>0){
+			imageCalculator("Add","cl0","cl"+toString(k));
+			close("cl"+toString(k));
+		}
+	}
+
+	run("Combine...", "stack1=0 stack2=cl0");
+
+	firstPartM="mot";
+	numberM=toString(t);
+	fileTypeM=".txt";
+	titleM=firstPartM+numberM+fileTypeM;
+	filenameM=dir+titleM;
+	filestringM=File.openAsString(filenameM);
+	rowsM=split(filestringM,"\n"); //Number of attached motors, changes with each time step
+	columnsM=split(rowsM[0]); //x1,y1,x2,y2, should always be 4 columns
+	M=rowsM.length;
+	x1=newArray(M);
+	y1=newArray(M);
+	x2=newArray(M);
+	y2=newArray(M);
+
+	for (j=0; j<M; j++){
+		lineM=split(rowsM[j]); //x1,y1,x2,y2, should always be 4 columns
+
+		x1[j]=((lineM[0])+2)*100;
+		y1[j]=((lineM[1])+2)*100;
+		x2[j]=((lineM[2])+2)*100;
+		y2[j]=((lineM[3])+2)*100;
+		newImage("m"+toString(j),"RGB black",400,400,1);
+		setLineWidth(2);
+		setColor(0,100,0);
+		drawLine(x1[j],y1[j],x2[j],y2[j]);
+
+		if (j>0){
+			imageCalculator("Add","m0","m"+toString(j));
+			close("m"+toString(j));
+		}
+	}
+	run("Combine...", "stack1=[Combined Stacks] stack2=m0");
+	run("Select All");
+	run("Copy");
+	selectWindow("Simulation");
+	run("Paste");
+
+	setBatchMode(false);

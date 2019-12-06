@@ -1,0 +1,294 @@
+var cellx = newArray(9000);
+var celly = newArray(9000);
+var ncells;
+
+function MakeHexROI(x,y,r)
+{
+	var delx, dely1, dely2, x1,x2,x3,x4,x5,x6, y1,y2,y3,y4,y5,y6;
+	
+	delx = r*(sqrt(3)/2);
+	dely1 = r/2;
+	dely2 = r;
+	
+	x1 = x;
+	y1 = y-dely2;
+	
+	x2 = x + delx;
+	y2 = y-dely1;
+	
+	x3 = x + delx;
+	y3 = y + dely1;
+	
+	x4 = x;
+	y4 = y + dely2;
+	
+	x5 = x - delx;
+	y5 = y + dely1;
+	
+	x6 = x - delx;
+	y6 = y - dely1;
+	
+	makePolygon(x1,y1,x2,y2,x3,y3,x4,y4,x5,y5,x6,y6);
+}
+
+function HexROIFill(rhex, offsetx, offsety, frwidth, frheight)
+{
+
+	var nwidth, nheight, offx, offy, i, j, icell;
+	
+	var t, theight, highx;
+
+//	rhex=getNumber("Radius of hexagons to pack into frame", 10);
+
+	
+//	find out how many hexagons pack in height
+	
+
+	// the max number of short sides
+	
+	theight = frheight/(rhex+(rhex*sqrt(3))/2);
+	
+	highx = 0;
+	lastx = 0;
+	t = 0;
+	
+	highx = 2*rhex;
+	
+	while (highx < frheight)
+	{
+		lastx = highx;
+
+		t++;
+		highx = highx + rhex + rhex*sqrt(3)/2;
+	}
+	
+	highx = lastx;
+	
+	nwidth = floor( frwidth / (rhex*sqrt(3)));
+	nheight = 1+ floor( (frheight - 2*rhex)/(rhex + rhex/2));
+	
+	highx = 2*rhex + (nheight-1)*(rhex + rhex/2);
+
+// offset of first hexagon in upper left
+
+	
+	offx = offsetx + 0.5*(frwidth - nwidth*rhex*sqrt(3));
+	
+	offy = offsety + 0.5*(frheight - highx);
+
+	offsetx = offsety = 0;
+
+	icell = 1;
+	
+	for (j=1;j<=nheight; j++)
+	{	
+		offsety = offsety + rhex;
+
+		if (2*floor(j/2) == j)
+		{
+		// even rows offset centers
+			offsetx = rhex*sqrt(3);
+			for (i=1;i<nwidth; i++)
+			{
+				cellx[icell] = offx + offsetx + (i-1)*(rhex*sqrt(3));
+				celly[icell] = offy + offsety + (j-1)*(rhex/2);
+			//	DrawOval(cellx[icell], celly[icell], rhex/10);
+				MakeHexROI(cellx[icell], celly[icell],rhex);
+				roiManager("Add");				
+				icell++;
+			}
+		}
+		else
+		{
+		// odd rows no offset
+			offsetx = rhex*sqrt(3)/2;
+			for (i=1;i<=nwidth; i++)
+			{
+				cellx[icell] = offx + offsetx + (i-1)*(rhex*sqrt(3));
+				celly[icell] = offy + offsety + (j-1)*(rhex/2);
+			//	 DrawOval(cellx[icell], celly[icell], rhex/10);
+				MakeHexROI(cellx[icell], celly[icell],rhex);
+				roiManager("Add");
+				icell++;
+			}
+		}	
+	}
+	ncells = icell-1;
+}
+
+function EliminateOutsiders()
+{
+//
+// compare ROIs to eliminate ROIs that lie outside ROI-zero
+// each time an ROI is eliminated the list is updated...
+//
+	stackID = getImageID();
+	
+	nrois = roiManager("Count");
+	roiManager("Select", 0);
+	getStatistics(area1);
+
+	i = 1;
+	nrois = roiManager("Count");
+	while (i < nrois)
+	{
+		setKeyDown("none");
+		selectImage(stackID);
+		roiManager("Select", 0);
+		setKeyDown("shift");
+		roiManager("Select", i);
+		setKeyDown("none");
+		getStatistics(areaboth);
+		//
+		//	check for overlapping selections
+		//
+		if (areaboth == area1) // ROI i is completely contained within ROI-zero
+		{
+			// do nothing
+			i++;
+		}
+		else	// the areas are completely different or they partially overlap
+		{
+			roiManager("Select",i);
+			roiManager("Delete");
+		}
+		nrois = roiManager("Count");
+	}
+}
+
+function AllHexStackAveIntensity()
+{
+//
+//
+// calculate the average intensity for the entire set of hex ROIs in all the slices.
+//
+//
+
+//
+// first create a super-hex ROI that includes all the hex ROIs.
+//
+	nrois = roiManager("Count");
+	
+	//
+	// ROI 0 is the large "cell-enclosing" ROI
+	// ROI 1...nrois are the smaller hex ROIs
+	//
+	
+	roiManager("Select", 1);
+	for (i=2;i<nrois; i++)
+	{
+		setKeyDown("shift");   // -shift select- adds the ROI to the existing ROI
+		roiManager("Select", i);
+	}
+	
+//
+// then advance through the stack adding the mean intensity of each slice.
+//	and calculate the average intenstiy (all hexROI - all slices)
+//
+	stackintens = 0;
+	for (n=1; n<=nSlices; n++) 
+	{	
+		setSlice(n);
+		run("Measure");
+		hexslice = getResult("Mean");
+		stackintens = stackintens + hexslice;
+	}
+	stackintens = stackintens/nSlices;
+	return stackintens;
+}
+
+
+
+macro "DrillwithinROIforAster"
+{
+	sim=getInfo("image.filename");
+	getDimensions(simWidth,simHeight,simChannels,simSlices,simFrames);
+	newImage("HexMask","8-bit white", simWidth, simHeight, simSlices);
+	selectWindow(sim);
+
+	
+	getSelectionBounds(xbox, ybox, rwidth, rheight);
+	if (rwidth == 0)
+	{
+		ShowMessage("Requires an ROI drawn within a cell");
+		exit;
+	}
+	roiManager("Add");
+	
+	var hexradius =16; //8 standard size
+	var bigstring = "";
+	HexROIFill(hexradius, xbox, ybox, rwidth, rheight);
+	EliminateOutsiders();
+	nrois = roiManager("Count");
+
+	run("Set Measurements...", "  mean slice redirect=None decimal=6");
+	
+	stackintens = AllHexStackAveIntensity();
+  print("stackintens: ",stackintens);
+setBatchMode(true);
+	for (i=1; i<nrois; i++)
+	{
+		bigstring = toString(i) + fromCharCode(9);
+		roiManager("Select",i);
+		
+		for (n=1; n<=nSlices; n++)
+		{
+			setSlice(n);
+			run("Measure");
+			hexintens = getResult("Mean");
+			
+			if ( hexintens > stackintens*1.7) //Change this threshold (originally 1.2)
+//was 2 for actin, 8 for myosin (standard case)
+
+			{	
+				hexintens = getResult("Mean");
+				setColor(255,255,255); //change color
+				fill();
+				//run("Draw");	
+				selectWindow("HexMask");
+//print("slice number: ",n);
+//print("ROI number: ",i);
+				//setSlice(n);
+				roiManager("Select",i);
+				setSlice(n);
+				setColor(0,0,0);
+				fill();
+				selectWindow(sim);
+				
+					
+			}
+			
+			else
+			{
+				hexintens=0;
+			 }
+
+			bigstring = bigstring + toString(hexintens) + fromCharCode(9);
+
+		}
+				
+		
+		//print (bigstring);
+		//bigstring = "";
+		
+	
+
+	}
+setBatchMode(false);
+	//roiManager("select",0);
+	//run("Create Mask");
+
+
+				
+		
+	//setThreshold(0, 224);
+	//run("Convert to Mask", "  black");
+	//run("Find Edges", "stack");
+	//run("Analyze Particles...", "size=0-Infinity circularity=0.00-1.00 show=Outlines display exclude add stack");
+	//run("Analyze Particles...", "size=17-Infinity circularity=0.00-1.00 show=Outlines display exclude include summarize add stack");
+	
+}
+	
+		
+
+

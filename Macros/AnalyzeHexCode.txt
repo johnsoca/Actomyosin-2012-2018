@@ -1,0 +1,44 @@
+// Analyze one image
+dir=getDirectory("Choose a directory");
+open();
+run("Select All");
+run("Set Measurements...", "area center perimeter stack redirect=None decimal=6");
+run("Analyze Particles...", "display add");
+saveAs("Results", dir+"ResultsT=1000.xls");
+/*
+//Analyze stack
+dir=getDirectory("Choose a directory");
+open();
+getDimensions(width,height,channels,slices,frames);
+run("ROI Manager...");
+setBatchMode(true);
+for (i=1; i<=slices; i++)
+{
+	run("Select All");
+	run("Set Measurements...", "area center perimeter stack redirect=None decimal=6");
+	run("Analyze Particles...", "display add");
+	run("Next Slice [>]");
+}
+
+IJ.renameResults("Analyze Particles Results");
+setBatchMode(false);
+*/
+/*
+//Determine mean intensity for analyzed particles sites
+nROIs=roiManager("count");
+open();
+getDimensions(width,height,channels,slices,frames);
+name=getTitle;
+for (i=1; i<=slices; i++)
+{
+	for (n=0; n<nROIs; n++)
+	{
+		selectWindow(name);
+		setSlice(i);
+		run("Set Measurements...","mean stack redirect=None decimal=6");
+		roiManager("Select",n);
+		run("Measure");
+	}
+}
+
+*/
